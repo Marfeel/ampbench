@@ -1,0 +1,215 @@
+#!/usr/bin/env node
+'use strict';
+
+const benchlib = require('./ampbench_lib.js');
+const sdlib = require('./ampbench_lib_sd.js');
+const handlers = require('./ampbench_handlers.js');
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// app version
+//
+
+const VERSION_STRING = '[AMPBench:v.1.0]';
+
+function version_msg(msg){
+    return VERSION_STRING + '[' + new Date().toISOString() + '] ' + msg;
+}
+
+function validator_signature() {
+    return '[validator-signature:' + benchlib.lib_amphtml_validator_signature() + ']';
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// app validation check status constants
+//
+
+const
+    CHECK_FAIL = 'FAIL',
+    CHECK_PASS = 'PASS',
+    CHECK_INFO = 'INFO',
+    CHECK_WARN = 'WARNING',
+    CHECK_NONE = 'UNKNOWN';
+
+const
+    get_check_status_css = (status) => {
+        switch(status) {
+            case CHECK_FAIL: return CHECK_FAIL_CSS;
+            case CHECK_PASS: return CHECK_PASS_CSS;
+            case CHECK_INFO: return CHECK_INFO_CSS;
+            case CHECK_WARN: return CHECK_WARN_CSS;
+            default: return CHECK_NONE_CSS;
+        }
+    };
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// app imports, main instance and view templates
+//
+
+const os = require('os');
+const fs = require('fs');
+const path = require("path");
+const http = require('http');
+const https = require('https');
+const url = require('url');
+const util = require('util');
+const inspect_obj = (obj) => {return util.inspect(obj, { showHidden: true, depth: null })};
+const S = require('string');
+
+const handlebars = require('handlebars');
+
+var program = require('commander');
+
+function analyze(url) {
+    let amp_url = url.trim() || '';
+
+    let check_http_response = null;
+
+    let amp_status = CHECK_NONE,
+        amp_validate_output = [];
+
+    let api_validate_amp_return = '',
+        api_validate_sd_return = null,
+        api_validate_amp_warnings_return = null;
+
+    let parse_amplinks = {};
+
+    let check_amplinks = {};
+
+    let check_robots_txt_return = null,
+        check_google_amp_cache_return = null;
+
+    const make_api_response = () => {
+
+        // required markup warnings - - - - - - - - - -
+        amp_status = api_validate_amp_return.shift();
+        amp_validate_output = api_validate_amp_return.join(os.EOL);
+        api_validate_amp_warnings_return =
+            benchlib.build_warning_lines_from_validation_output(amp_url, amp_validate_output, '');
+        let amp_validate_warning_lines = api_validate_amp_warnings_return.amp_val_warning_lines.split('<br>');
+
+        return {
+            status: amp_status,
+            url: amp_url,
+            http_response: make_api_http_response(check_http_response),
+            extra: check_amplinks.check_extra,
+            amp_links: make_api_amp_links(parse_amplinks),
+            amp_required_markup: {
+                status: api_validate_amp_warnings_return.amp_val_results_status,
+                warning_count: api_validate_amp_warnings_return.amp_val_warnings_len,
+                warning_status: api_validate_amp_warnings_return.amp_val_warning_status,
+                results: amp_validate_warning_lines
+            },
+            amp_validation: {
+                status: amp_status,
+                results: api_validate_amp_return
+            },
+            google_amp_cache: {
+                status: check_google_amp_cache_return.check_google_amp_cache_status,
+                result: check_google_amp_cache_return.check_google_amp_cache_results,
+                google_amp_cache_url: check_google_amp_cache_return.check_google_amp_cache_url,
+                google_amp_viewer_url: check_google_amp_cache_return.check_google_amp_viewer_url
+            },
+            robots: {
+                robots_txt_status: check_robots_txt_return.check_robots_txt_status,
+                robots_txt_result: check_robots_txt_return.check_robots_txt_results,
+                robots_txt_url: check_robots_txt_return.check_robots_txt_file_url,
+                robots_txt_googlebot_status: check_robots_txt_return.check_robots_txt_ua_googlebot_ok,
+                robots_txt_googlebot_smartphone_status: check_robots_txt_return.check_robots_txt_ua_googlebot_smartphone_ok,
+                robots_meta_status: parse_amplinks.check_robots_meta_status,
+                robots_meta_result: parse_amplinks.check_robots_meta_results,
+                x_robots_tag_header_status: parse_amplinks.check_x_robots_tag_header_status,
+                x_robots_tag_header_result: parse_amplinks.check_x_robots_tag_header_results
+            },
+            sd_validation: make_api_sd_validation(api_validate_sd_return)
+        }
+    };
+
+    let write_api_response = () => {
+        console.log(make_api_response());
+    };
+
+    let on_api_validate_sd = (api_return) => {
+        api_validate_sd_return = api_return;
+        write_api_response();
+    };
+
+    let on_api_google_amp_cache = (api_return) => {
+        check_google_amp_cache_return = api_return;
+        on_api_validate_sd(sdlib.check_body_metadata(check_http_response.http_response_body));
+    };
+
+    let on_api_robots_txt = (api_return) => {
+        check_robots_txt_return = api_return;
+        benchlib.check_google_amp_cache(amp_url, on_api_google_amp_cache);
+    };
+
+    let on_api_validate_amp = (http_response, api_return) => {
+        check_http_response = http_response;
+        console.log(version_msg(
+            validator_signature() +
+            '[HTTP:' + check_http_response.http_response_code + '] ' +
+            'req.path' + ' ' + amp_url)); //!!!USEFUL!!!
+        api_validate_amp_return = api_return;
+        // parse_amplinks = benchlib.parse_body_for_amplinks_and_robots_metatags(check_http_response.http_response_body);
+        parse_amplinks = benchlib.parse_page_content(check_http_response);
+        check_amplinks = benchlib.review_amp_links(amp_url, parse_amplinks);
+        benchlib.check_robots_txt(amp_url, on_api_robots_txt);
+    };
+
+    if ('' === amp_url) {
+        console.error('No validation API URL parameter found.');
+    } else {
+        benchlib.api_validate_url(amp_url, on_api_validate_amp, 1);
+    }
+}
+
+const make_api_http_response = (http_response) => {
+    return {
+        url: http_response.url,
+        http_code: http_response.http_response_code,
+        http_text: http_response.http_response_text,
+        response_time_ms: http_response.duration_in_milliseconds,
+        redirected: http_response.wasRedirected(),
+        redirects_count: http_response.redirects_count,
+        redirects_urls: http_response.redirects_urls,
+        is_https: http_response.is_https,
+        is_https_cert_authorized: http_response.is_https_cert_authorized,
+        is_https_ssl_error: http_response.is_https_cert_ssl_error
+    };
+};
+
+const make_api_amp_links = (parse_amplinks) => {
+    return {
+        canonical_url: parse_amplinks.canonical_url,
+        amphtml_url: parse_amplinks.amphtml_url,
+        amp_uses_feed: parse_amplinks.amp_uses_feed
+    };
+};
+
+const make_api_sd_validation = (api_validate_sd_return) => {
+    return {
+        status:             api_validate_sd_return.status,
+        result:             api_validate_sd_return.result,
+        sd_json_error:      api_validate_sd_return.json_error,
+        sd_kind:            api_validate_sd_return.kind,
+        sd_type:            api_validate_sd_return.type,
+        sd_type_is_amp:     api_validate_sd_return.type_is_amp,
+        sd_context:         api_validate_sd_return.context,
+        sd_headline:        api_validate_sd_return.news_headline,
+        sd_author_name:     api_validate_sd_return.author_name,
+        sd_publisher_name:  api_validate_sd_return.publisher_name,
+        sd_date_published:  api_validate_sd_return.date_published,
+        sd_date_modified:   api_validate_sd_return.date_modified,
+        sd_logo_image:      api_validate_sd_return.image,
+        sd_article:         api_validate_sd_return.article
+    };
+};
+
+program
+    .arguments('<url>')
+    .action(function(url) {
+        console.log('Analyzing url: %s', url);
+        analyze(url);
+
+    })
+    .parse(process.argv);
