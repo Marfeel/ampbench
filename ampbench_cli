@@ -166,10 +166,11 @@ function analyze(url) {
 
             case check_robots_txt_return.check_robots_txt_status:
                 message += " " + check_robots_txt_return.check_robots_txt_results;
+                count += 1;
 
             case make_api_response().sd_validation.status:
                 message += " " + make_api_response().sd_validation.result;
-                var state = criticalThreshold;
+                count += 1;
         }
 
         if (count > 0) {
