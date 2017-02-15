@@ -64,6 +64,7 @@ getOpt.setHelp('Usage: ampbench_cli [Options] -- '
 
 var args = getOpt.parseSystem();
 
+
 // validate mandatory arguments
 if (args.argv.length == 0) {
     console.log('missing arguments');
@@ -90,8 +91,20 @@ o.setThresholds({
     'ok': okThreshold,
 });
 
+//Validates the size of the css file
+function cssValidator(cssAddr){
+    http.get(cssAddr, function(res) {
+        var cssSize = res.headers['content-length'];
+        var maxSize = 46080;
+
+        if (cssSize > maxSize) {
+            o.nagiosExit(warningThreshold, "CSS file near size limit");
+        }
+    });
+}
 
 function analyze(url) {
+
     let amp_url = url.trim() || '';
 
     let check_http_response = null;
@@ -272,8 +285,9 @@ const make_api_sd_validation = (api_validate_sd_return) => {
 
 
 program
-    .arguments('<url>')
-    .action(function(url) {
+    .arguments('<url> <cssAddr>')
+    .action(function(url, cssAddr) {
+        cssValidator(cssAddr);
         analyze(url);
 
     })
