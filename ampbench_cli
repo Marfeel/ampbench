@@ -6,12 +6,6 @@ const sdlib = require('./ampbench_lib_sd.js');
 const handlers = require('./ampbench_handlers.js');
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// app version
-//
-
-
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // app validation check status constants
 //
 
@@ -50,32 +44,10 @@ const handlebars = require('handlebars');
 
 var program = require('commander');
 
-// Don't need this as I want to trigger critical with any fail
-var getOpt = require('node-getopt')
-    .create([ [ 'm', 'match=<STRING>', 'String response body must match' ]
-        , [ 'w', 'warning=<STRING>', 'Warning threshold' ]
-        , [ 'o', 'ok=<STRING>' , 'Ok threshold' ]
-        , [ 'c', 'critical=<STRING>', 'Critical threshold' ]
-        , [ 'h', 'help', 'display this help' ]])
-    .bindHelp();
-
-getOpt.setHelp('Usage: ampbench_cli [Options] -- '
-    + '<arguments to pass>\nOptions:\n[[OPTIONS]]');
-
-var args = getOpt.parseSystem();
-
-
-// validate mandatory arguments
-if (args.argv.length == 0) {
-    console.log('missing arguments');
-    getOpt.showHelp();
-    process.exit(3);
-}
-
 //Nagios integration
-var criticalThreshold = args.options.critical || 2;
-var warningThreshold = args.options.warning || 1;
-var okThreshold = args.options.ok || 0;
+var criticalThreshold =  2;
+var warningThreshold =  1;
+var okThreshold = 0;
 
 var Plugin = require('nagios-plugin');
 // create a new plugin object with optional initialization parameters
@@ -83,12 +55,6 @@ var o = new Plugin({
     // shortName is used in output
     shortName : 'ampbench_cli'
 
-});
-// set monitor thresholds
-o.setThresholds({
-    'critical' : criticalThreshold,
-    'warning': warningThreshold,
-    'ok': okThreshold,
 });
 
 //Validates the size of the css file
