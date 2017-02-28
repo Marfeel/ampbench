@@ -45,9 +45,9 @@ const handlebars = require('handlebars');
 var program = require('commander');
 
 //Nagios integration
-const criticalThreshold =  2;
-const warningThreshold =  1;
-const okThreshold = 0;
+var criticalThreshold =  2;
+var warningThreshold =  1;
+var okThreshold = 0;
 
 var Plugin = require('nagios-plugin');
 // create a new plugin object with optional initialization parameters
@@ -62,12 +62,9 @@ function cssValidator(cssAddr){
     http.get(cssAddr, function(res) {
         var cssSize = res.headers['content-length'];
         var maxSize = 46080;
+
         if (cssSize > maxSize) {
             o.nagiosExit(warningThreshold, "CSS file near size limit");
-        } else {
-            var message = "No errors found";
-            var state = okThreshold;
-            o.nagiosExit(state, message);
         }
     });
 }
@@ -140,45 +137,46 @@ function analyze(url) {
             },
             sd_validation: make_api_sd_validation(api_validate_sd_return)
         }
-        };
+    };
 
     //Logic here
     let write_api_response = () => {
 
         make_api_response();
-        var count = 0;
+
         var message = "";
-        var state = "";
 
-        switch ('FAIL'){
-
-            case amp_status:
-                message += " " + api_validate_amp_return;
-                count += 1;
-
-            case api_validate_amp_warnings_return.amp_val_results_status:
-                message += " " + api_validate_amp_warnings_return.amp_val_warning_lines.split('<br>');
-                count += 1;
-
-            case check_google_amp_cache_return.check_google_amp_cache_status:
-                message += " " + check_google_amp_cache_return.check_google_amp_cache_results;
-                count += 1;
-
-            case check_robots_txt_return.check_robots_txt_status:
-                message += " " + check_robots_txt_return.check_robots_txt_results;
-                count += 1;
-
-            case make_api_response().sd_validation.status:
-                message += " " + make_api_response().sd_validation.result;
-                count += 1;
+        if (amp_status != 'PASS'){
+            message += api_validate_amp_return + "\n";
+            var state = criticalThreshold;
         }
 
-        if (count > 0) {
+        if (api_validate_amp_warnings_return.amp_val_results_status != 'PASS'){
+            message += api_validate_amp_return + "\n";
+        }
+
+        if (check_google_amp_cache_return.check_google_amp_cache_status != 'PASS'){
+            message += check_google_amp_cache_return.check_google_amp_cache_results + "\n";
+        }
+
+        if (check_robots_txt_return.check_robots_txt_status != 'PASS') {
+            message += check_robots_txt_return.check_robots_txt_results + "\n";
+        }
+
+        if(make_api_response().sd_validation.status != 'PASS') {
+            message += make_api_response().sd_validation.result + "\n";
+        }
+
+        if(message) {
             var state = criticalThreshold;
             o.nagiosExit(state, message);
+        } else {
 
+            var message = "No errors found";
+            var state = okThreshold;
+            o.nagiosExit(state, message);
         }
-        };
+    };
 
     let on_api_validate_sd = (api_return) => {
         api_validate_sd_return = api_return;
@@ -256,8 +254,8 @@ const make_api_sd_validation = (api_validate_sd_return) => {
 program
     .arguments('<url> <cssAddr>')
     .action(function(url, cssAddr) {
-        analyze(url);
         cssValidator(cssAddr);
+        analyze(url);
 
     })
     .parse(process.argv);
