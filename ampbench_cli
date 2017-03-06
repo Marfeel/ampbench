@@ -6,20 +6,6 @@ const sdlib = require('./ampbench_lib_sd.js');
 const handlers = require('./ampbench_handlers.js');
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// app version
-//
-
-const VERSION_STRING = '[AMPBench:v.1.0]';
-
-function version_msg(msg){
-    return VERSION_STRING + '[' + new Date().toISOString() + '] ' + msg;
-}
-
-function validator_signature() {
-    return '[validator-signature:' + benchlib.lib_amphtml_validator_signature() + ']';
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // app validation check status constants
 //
 
@@ -54,12 +40,28 @@ const url = require('url');
 const util = require('util');
 const inspect_obj = (obj) => {return util.inspect(obj, { showHidden: true, depth: null })};
 const S = require('string');
-
 const handlebars = require('handlebars');
 
 var program = require('commander');
 
-function analyze(url) {
+//Nagios integration
+const criticalThreshold =  2;
+const warningThreshold =  1;
+const okThreshold = 0;
+
+//CSS size limit
+const maxSize = 46080;
+
+var Plugin = require('nagios-plugin');
+// create a new plugin object with optional initialization parameters
+var o = new Plugin({
+    // shortName is used in output
+    shortName : 'ampbench_cli'
+
+});
+
+function analyze(url, cssAddr) {
+
     let amp_url = url.trim() || '';
 
     let check_http_response = null;
@@ -88,11 +90,13 @@ function analyze(url) {
         let amp_validate_warning_lines = api_validate_amp_warnings_return.amp_val_warning_lines.split('<br>');
 
         return {
+
             status: amp_status,
             url: amp_url,
             http_response: make_api_http_response(check_http_response),
             extra: check_amplinks.check_extra,
             amp_links: make_api_amp_links(parse_amplinks),
+
             amp_required_markup: {
                 status: api_validate_amp_warnings_return.amp_val_results_status,
                 warning_count: api_validate_amp_warnings_return.amp_val_warnings_len,
@@ -103,12 +107,14 @@ function analyze(url) {
                 status: amp_status,
                 results: api_validate_amp_return
             },
+
             google_amp_cache: {
                 status: check_google_amp_cache_return.check_google_amp_cache_status,
                 result: check_google_amp_cache_return.check_google_amp_cache_results,
                 google_amp_cache_url: check_google_amp_cache_return.check_google_amp_cache_url,
                 google_amp_viewer_url: check_google_amp_cache_return.check_google_amp_viewer_url
             },
+
             robots: {
                 robots_txt_status: check_robots_txt_return.check_robots_txt_status,
                 robots_txt_result: check_robots_txt_return.check_robots_txt_results,
@@ -124,8 +130,47 @@ function analyze(url) {
         }
     };
 
+    //Logic here
     let write_api_response = () => {
-        console.log(make_api_response());
+
+        make_api_response();
+
+        var message = "";
+
+        if (amp_status != CHECK_PASS){
+            message += api_validate_amp_return + "\n";
+        }
+
+        if (api_validate_amp_warnings_return.amp_val_results_status != CHECK_PASS){
+            message += api_validate_amp_return + "\n";
+        }
+
+        if (check_google_amp_cache_return.check_google_amp_cache_status != CHECK_PASS){
+            message += check_google_amp_cache_return.check_google_amp_cache_results + "\n";
+        }
+
+        if (check_robots_txt_return.check_robots_txt_status != CHECK_PASS) {
+            message += check_robots_txt_return.check_robots_txt_results + "\n";
+        }
+
+        if(make_api_response().sd_validation.status != CHECK_PASS) {
+            message += make_api_response().sd_validation.result + "\n";
+        }
+
+        if(message) {
+            o.nagiosExit(criticalThreshold, message);
+        } else {
+
+            http.get(cssAddr, function (res) {
+                var cssSize = res.headers['content-length'];
+
+                if (cssSize > maxSize) {
+                    o.nagiosExit(warningThreshold, "CSS file near size limit");
+                }
+                o.nagiosExit(okThreshold);
+            });
+
+        }
     };
 
     let on_api_validate_sd = (api_return) => {
@@ -145,12 +190,7 @@ function analyze(url) {
 
     let on_api_validate_amp = (http_response, api_return) => {
         check_http_response = http_response;
-        console.log(version_msg(
-            validator_signature() +
-            '[HTTP:' + check_http_response.http_response_code + '] ' +
-            'req.path' + ' ' + amp_url)); //!!!USEFUL!!!
         api_validate_amp_return = api_return;
-        // parse_amplinks = benchlib.parse_body_for_amplinks_and_robots_metatags(check_http_response.http_response_body);
         parse_amplinks = benchlib.parse_page_content(check_http_response);
         check_amplinks = benchlib.review_amp_links(amp_url, parse_amplinks);
         benchlib.check_robots_txt(amp_url, on_api_robots_txt);
@@ -203,13 +243,16 @@ const make_api_sd_validation = (api_validate_sd_return) => {
         sd_logo_image:      api_validate_sd_return.image,
         sd_article:         api_validate_sd_return.article
     };
+
+
 };
 
+
 program
-    .arguments('<url>')
-    .action(function(url) {
-        console.log('Analyzing url: %s', url);
-        analyze(url);
+    .arguments('<url> <cssAddr>')
+    .action(function(url, cssAddr) {
+
+        analyze(url, cssAddr);
 
     })
     .parse(process.argv);
