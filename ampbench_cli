@@ -49,6 +49,9 @@ const criticalThreshold =  2;
 const warningThreshold =  1;
 const okThreshold = 0;
 
+//CSS size limit
+const maxSize = 46080;
+
 var Plugin = require('nagios-plugin');
 // create a new plugin object with optional initialization parameters
 var o = new Plugin({
@@ -136,7 +139,6 @@ function analyze(url, cssAddr) {
 
         if (amp_status != CHECK_PASS){
             message += api_validate_amp_return + "\n";
-            var state = criticalThreshold;
         }
 
         if (api_validate_amp_warnings_return.amp_val_results_status != CHECK_PASS){
@@ -156,14 +158,11 @@ function analyze(url, cssAddr) {
         }
 
         if(message) {
-            var state = criticalThreshold;
-            o.nagiosExit(state, message);
-
+            o.nagiosExit(criticalThreshold, message);
         } else {
 
             http.get(cssAddr, function (res) {
                 var cssSize = res.headers['content-length'];
-                var maxSize = 46080;
 
                 if (cssSize > maxSize) {
                     o.nagiosExit(warningThreshold, "CSS file near size limit");
