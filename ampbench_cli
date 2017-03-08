@@ -137,13 +137,13 @@ function analyze(url, cssAddr) {
 
         var message = "";
 
-        if (amp_status != CHECK_PASS){
+        if (amp_status != CHECK_PASS ){
             message += api_validate_amp_return + "\n";
         }
 
-        if (api_validate_amp_warnings_return.amp_val_results_status != CHECK_PASS){
-            message += api_validate_amp_return + "\n";
-        }
+        if (api_validate_amp_warnings_return.amp_val_results_status){
+            message += api_validate_amp_warnings_return.amp_val_results_status + "\n" + api_validate_amp_warnings_return.amp_val_warning_lines.split('\n');
+            }
 
         if (check_google_amp_cache_return.check_google_amp_cache_status != CHECK_PASS){
             message += check_google_amp_cache_return.check_google_amp_cache_results + "\n";
