@@ -136,14 +136,19 @@ function analyze(url, cssAddr) {
         make_api_response();
 
         var message = "";
+        var warningMessage = "";
 
         if (amp_status != CHECK_PASS ){
             message += api_validate_amp_return + "\n";
         }
 
-        if (api_validate_amp_warnings_return.amp_val_results_status){
+        if (api_validate_amp_warnings_return.amp_val_warning_status != CHECK_PASS){
             message += api_validate_amp_warnings_return.amp_val_results_status + "\n" + api_validate_amp_warnings_return.amp_val_warning_lines.split('\n');
-            }
+        }
+
+        if (api_validate_amp_warnings_return.amp_val_results_status) {
+            warningMessage = api_validate_amp_warnings_return.amp_val_results_status + "\n" + api_validate_amp_warnings_return.amp_val_warning_lines.split('\n');
+        }
 
         if (check_google_amp_cache_return.check_google_amp_cache_status != CHECK_PASS){
             message += check_google_amp_cache_return.check_google_amp_cache_results + "\n";
@@ -160,6 +165,15 @@ function analyze(url, cssAddr) {
         if(message) {
             o.nagiosExit(criticalThreshold, message);
         } else {
+
+            if (warningMessage) {
+                o.nagiosExit(warningThreshold,warningMessage);
+            }
+
+            if (api_validate_amp_warnings_return.amp_val_results_status){
+                message += api_validate_amp_warnings_return.amp_val_results_status + "\n" + api_validate_amp_warnings_return.amp_val_warning_lines.split('\n');
+                o.nagiosExit(warningThreshold, message);
+            }
 
             http.get(cssAddr, function (res) {
                 var cssSize = res.headers['content-length'];
