@@ -138,29 +138,45 @@ function analyze(url, cssAddr) {
         var message = "";
         var warningMessage = "";
 
-        if (amp_status != CHECK_PASS ){
+        if (amp_status == CHECK_FAIL ){
             message += api_validate_amp_return + "\n";
+        } else {
+            if (amp_status == CHECK_WARN) {
+                warningMessage += api_validate_amp_return + "\n";
+            }
         }
 
-        if (api_validate_amp_warnings_return.amp_val_warning_status != CHECK_PASS && api_validate_amp_warnings_return.amp_val_results_status){
+        if (api_validate_amp_warnings_return.amp_val_warning_status == CHECK_FAIL && api_validate_amp_warnings_return.amp_val_results_status){
             message += api_validate_amp_warnings_return.amp_val_results_status + "\n" + api_validate_amp_warnings_return.amp_val_warning_lines.split('\n');
         }
 
         if (api_validate_amp_warnings_return.amp_val_results_status) {
             warningMessage = api_validate_amp_warnings_return.amp_val_results_status + "\n" + api_validate_amp_warnings_return.amp_val_warning_lines.split('\n');
-        }
+            }
 
-        if (check_google_amp_cache_return.check_google_amp_cache_status != CHECK_PASS){
+        if (check_google_amp_cache_return.check_google_amp_cache_status == CHECK_FAIL){
             message += check_google_amp_cache_return.check_google_amp_cache_results + "\n";
+        } else {
+            if (check_google_amp_cache_return.check_google_amp_cache_status == CHECK_WARN) {
+                warningMessage += check_google_amp_cache_return.check_google_amp_cache_results + "\n";
+            }
         }
 
-        if (check_robots_txt_return.check_robots_txt_status != CHECK_PASS) {
+        if (check_robots_txt_return.check_robots_txt_status == CHECK_FAIL) {
             message += check_robots_txt_return.check_robots_txt_results + "\n";
+        } else {
+            if (check_robots_txt_return.check_robots_txt_status == CHECK_WARN) {
+                warningMessage += check_robots_txt_return.check_robots_txt_results + "\n";
+            }
         }
 
-        if(make_api_response().sd_validation.status != CHECK_PASS) {
-            message += make_api_response().sd_validation.result + "\n";
-        }
+            if (make_api_response().sd_validation.status == CHECK_FAIL) {
+                message += make_api_response().sd_validation.result + "\n";
+            } else {
+                if (make_api_response().sd_validation.status == CHECK_WARN) {
+                warningMessage += make_api_response().sd_validation.result + "\n";
+                }
+            }
 
         if(message) {
             o.nagiosExit(criticalThreshold, message);
