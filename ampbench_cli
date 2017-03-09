@@ -181,7 +181,7 @@ function analyze(url, cssAddr) {
                 if (cssSize > maxSize) {
                     o.nagiosExit(warningThreshold, "CSS file near size limit");
                 }
-                o.nagiosExit(okThreshold,"");
+                o.nagiosExit(okThreshold,"No errors found");
             });
 
         }
