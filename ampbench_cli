@@ -169,13 +169,20 @@ function analyze(url, cssAddr) {
                 warningMessage += check_robots_txt_return.check_robots_txt_results + "\n";
             }
         }
-
+        /*****************************************************************************************************
+            Structured Data
+        *****************************************************************************************************/
             if (make_api_response().sd_validation.status == CHECK_FAIL) {
                 message += make_api_response().sd_validation.result + "\n";
             } else {
                 if (make_api_response().sd_validation.status == CHECK_WARN) {
                 warningMessage += make_api_response().sd_validation.result + "\n";
                 }
+            }
+
+            if (make_api_response().sd_validation.sd_type_is_amp == CHECK_FAIL) {
+                amp_status = CHECK_FAIL;
+                message += "AMP's Structured Data Failure: " + make_api_response().sd_validation.result + "\n";
             }
 
         if(message) {
