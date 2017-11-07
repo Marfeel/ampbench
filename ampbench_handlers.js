@@ -24,7 +24,7 @@ const sdlib = require('./ampbench_lib_sd.js');
 // app version
 //
 
-const VERSION_STRING = '[AMPBench:v.1.0]';
+const VERSION_STRING = '[AMPBENCH:V.1.0]';
 
 function version_msg(msg) {
     return VERSION_STRING + '[' + new Date().toISOString() + '] ' + msg;
@@ -97,10 +97,7 @@ function validate(route, user_agent, user_agent_name, req, res, on_validate_call
 
         const on_amp_validate = (http_response, output) => {
 
-            console.log(version_msg(
-                validator_signature() +
-                '[HTTP:' + http_response.http_response_code + '] ' +
-                req.path + ' ' + url_to_validate)); //!!!USEFUL!!!
+            // console.log(`### [http_response.statusIsOK: ${http_response.statusIsOK()}]`);
 
             let parse_amplinks = benchlib.parse_page_content(http_response);
 
@@ -395,15 +392,25 @@ function validate(route, user_agent, user_agent_name, req, res, on_validate_call
                                     sniffer_raw_status_css = !sniffer.containsAmpHtmlSignature
                                         ? CHECK_FAIL_CSS : sniffer_raw_status_css;
 
+                                    const sniffer_contains_byte_order_mark = sniffer.containsByteOrderMark
+                                        ? `[${CHECK_WARN}] Byte Order Marks were detected on the page - ideally AMP pages should not contain any BOMs`
+                                        : `[${CHECK_PASS}] AMP page does not appear to contain any Byte Order Marks (BOMs)`;
+                                    const sniffer_contains_byte_order_mark_css = sniffer.containsByteOrderMark
+                                        ? CHECK_WARN_CSS : CHECK_PASS_CSS;
+
                                     __ret = {
                                         user_agent: benchlib.get_global_user_agent(),
                                         user_agent_name: benchlib.get_global_user_agent_name(),
                                         // https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
                                         response_timestamp: new Date().toISOString(), // The timezone is always zero UTC offset, as per suffix "Z"
                                         amphtml_validator_signature: validator_signature().substr(0, 21+16) + ']', // only show left 16 chars
-                                        // http_response: http_response,
+                                        http_response: http_response,
+                                        http_response_code: http_response.http_response_code,
+                                        http_response_statusIsOK: http_response.statusIsOK(),
                                         http_response_result: http_response_result,
                                         parse_amplinks: parse_amplinks,
+                                        check_ims_or_etag_header_status_css:
+                                            get_check_status_css(parse_amplinks.check_ims_or_etag_header.check_ims_or_etag_header_status),
                                         canonical_parsed_return: canonical_parsed_return,
                                         response_times: {
                                             status: response_times_status_css,
@@ -444,6 +451,8 @@ function validate(route, user_agent, user_agent_name, req, res, on_validate_call
                                             ? sniffer.ampCarouselStructuredDataTypesFound
                                             : CHECK_FAIL + ': No Structured Data markup for AMP Top Stories Carousel supported types was found',
                                         sd_containsIncompleteAmpCarouselStructuredData_result: sniffer_sd_carousel_result,
+                                        sniffer_contains_byte_order_mark: sniffer_contains_byte_order_mark,
+                                        sniffer_contains_byte_order_mark_css: sniffer_contains_byte_order_mark_css,
                                         // - - -
                                         metadata_is_news: metadata_return.schemaIsArticle() ||
                                         sniffer.containsAmpNewsCarouselStructuredDataTypeMain ||
@@ -465,6 +474,9 @@ function validate(route, user_agent, user_agent_name, req, res, on_validate_call
 
                                     on_validate_callback(__ret); // DONE!!!
                                 }
+
+                                // console.log(`### [DANGLING!][http_response.statusIsOK: ${http_response.statusIsOK()}]`);
+
                             };
                             sdlib.check_image_urls_are_reachable(publisher_logo_url, article_image_url, on_check_image_urls_are_reachable);
                         };
