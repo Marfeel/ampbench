@@ -775,7 +775,7 @@ class HttpBodyParser extends HttpBodySniffer {
 // https://github.com/ampproject/amphtml/blob/master/validator/nodejs/index.js
 // https://github.com/ampproject/amphtml/blob/master/validator/nodejs/index.js#L286
 const VALIDATOR_JS_URL  = 'https://cdn.ampproject.org/v0/validator.js';
-const VALIDATOR_JS_FILE = './validator/validator.js';
+const VALIDATOR_JS_FILE = '/usr/lib/nagios/plugins/ampbench/validator/validator.js';
 
 const amphtml_validator = require('amphtml-validator');
 var   amphtml_validator_instance = null; // cache the instance
