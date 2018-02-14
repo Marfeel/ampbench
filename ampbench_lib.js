@@ -785,6 +785,9 @@ class HttpBodyParser extends HttpBodySniffer {
 const VALIDATOR_JS_URL  = 'https://cdn.ampproject.org/v0/validator.js';
 const VALIDATOR_JS_FILE = '/usr/lib/nagios/plugins/ampbench/validator/validator.js';
 
+// For Development mode.
+//const VALIDATOR_JS_FILE = './validator/validator.js';
+
 const amphtml_validator = require('amphtml-validator');
 var   amphtml_validator_instance = null; // cache the instance
 
@@ -1028,7 +1031,7 @@ function fetch_and_parse_url_for_amplinks(request_url, on_parsed_callback) {
                     http_response.http_response_body = body;
                     __temp = parse_body_for_amplinks(body, http_response);
                     __return.url = full_path;
-                    __return.canonical_url = __temp.canonical_url;
+                    __return.canonical_url = encodeURI(__temp.canonical_url);
                     __return.amphtml_url = __temp.amphtml_url;
                     __return.has_dns_prefetch = __temp.has_dns_prefetch;
                     __return.status = CHECK_PASS; // status indicates successful fetch and parse, nothing more
@@ -1583,7 +1586,7 @@ function parse_page_content(http_response) {
     if (http_response.statusIsOK() && http_response.bodyIsNotEmpty()) { // page fetch PASS
 
         __temp = parse_body_for_amplinks_and_robots_metatags(http_response);
-        __return.canonical_url = __temp.canonical_url;
+        __return.canonical_url = encodeURI(__temp.canonical_url);
         __return.amphtml_url = __temp.amphtml_url;
         __return.has_dns_prefetch = __temp.has_dns_prefetch;
         __return.check_robots_meta_status = __temp.check_robots_meta_status;
