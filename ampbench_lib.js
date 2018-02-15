@@ -1031,7 +1031,7 @@ function fetch_and_parse_url_for_amplinks(request_url, on_parsed_callback) {
                     http_response.http_response_body = body;
                     __temp = parse_body_for_amplinks(body, http_response);
                     __return.url = full_path;
-                    __return.canonical_url = encodeURI(__temp.canonical_url);
+                    __return.canonical_url = __temp.canonical_url;
                     __return.amphtml_url = __temp.amphtml_url;
                     __return.has_dns_prefetch = __temp.has_dns_prefetch;
                     __return.status = CHECK_PASS; // status indicates successful fetch and parse, nothing more
@@ -1586,7 +1586,7 @@ function parse_page_content(http_response) {
     if (http_response.statusIsOK() && http_response.bodyIsNotEmpty()) { // page fetch PASS
 
         __temp = parse_body_for_amplinks_and_robots_metatags(http_response);
-        __return.canonical_url = encodeURI(__temp.canonical_url);
+        __return.canonical_url = __temp.canonical_url;
         __return.amphtml_url = __temp.amphtml_url;
         __return.has_dns_prefetch = __temp.has_dns_prefetch;
         __return.check_robots_meta_status = __temp.check_robots_meta_status;
@@ -1650,9 +1650,7 @@ function parse_body_for_amplinks(body, http_response) {
             href = {rel: rel, url: href_url};
             if ('canonical' === rel) {
                 // only take the first occurrence
-                __return.canonical_url = '' === __return.canonical_url
-                    ? href_url
-                    : __return.canonical_url;
+                __return.canonical_url = encodeURI('' === __return.canonical_url ? href_url : __return.canonical_url);
             }
             if ('amphtml' === rel) {
                 // only take the first occurrence
@@ -1671,7 +1669,7 @@ function parse_body_for_amplinks_and_robots_metatags(http_response) {
     const
         __links = parse_body_for_amplinks(http_response.http_response_body, http_response);
     const
-        canonical_url = __links.canonical_url,
+        canonical_url = encodeURI(__links.canonical_url),
         amphtml_url = __links.amphtml_url,
         has_dns_prefetch = __links.has_dns_prefetch;
 
